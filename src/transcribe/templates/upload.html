@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Upload · Transcribe{% endblock %}
+{% block content %}
+<h1>Upload a Recording</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="/upload" enctype="multipart/form-data">
+  <label>Audio
+    <input type="file" name="files" required
+           accept="{% for ext in accepted_extensions %}.{{ ext }}{% if not loop.last %},{% endif %}{% endfor %}">
+  </label>
+  <label>Kind
+    <select name="kind_id" required>
+      {% for kind in kinds %}
+      <option value="{{ kind.id }}"{% if kind.id == selected_kind_id %} selected{% endif %}>{{ kind.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Title
+    <input type="text" name="title" value="{{ title }}" placeholder="Defaults to the filename">
+  </label>
+  <label>Language
+    <select name="language">
+      {% for code, name in languages.items() %}
+      <option value="{{ code }}"{% if code == selected_language %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Upload</button>
+</form>
+{% endblock %}

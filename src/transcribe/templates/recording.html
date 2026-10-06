@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ recording.title }} · Transcribe{% endblock %}
+{% block content %}
+<h1>{{ recording.title }}</h1>
+<dl>
+  <dt>Kind</dt><dd>{{ recording.kind_name }}</dd>
+  <dt>Status</dt><dd class="status">{{ recording.status | status }}</dd>
+  <dt>Duration</dt><dd class="duration">{{ recording.duration_seconds | duration }}</dd>
+  <dt>Uploaded</dt><dd>{{ recording.created_at }} UTC</dd>
+  <dt>Language</dt><dd>{{ recording.language_requested | language }}{% if recording.language_requested %} ({{ recording.language_requested }}){% endif %}</dd>
+  <dt>Original name</dt><dd>{{ recording.original_filename }}</dd>
+</dl>
+{% endblock %}

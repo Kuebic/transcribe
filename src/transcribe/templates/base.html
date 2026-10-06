@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Transcribe{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 52rem; padding: 0 1rem 2rem; line-height: 1.5; }
+    nav { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #eee; }
+    .duration { font-variant-numeric: tabular-nums; }
+    form label { display: block; margin-top: 1rem; }
+    input, select, button { font: inherit; padding: .4rem; max-width: 100%; }
+    button { margin-top: 1rem; }
+    .error { color: #a00; border: 1px solid #a00; padding: .5rem; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
+    dt { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <nav><a href="/">Recordings</a><a href="/upload">Upload</a></nav>
+  {% block content %}{% endblock %}
+</body>
+</html>

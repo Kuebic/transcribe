@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Recordings</h1>
+{% if recordings %}
+<table>
+  <thead>
+    <tr><th>Title</th><th>Kind</th><th>Duration</th><th>Uploaded</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    {% for recording in recordings %}
+    <tr class="recording">
+      <td><a href="/recordings/{{ recording.id }}">{{ recording.title }}</a></td>
+      <td>{{ recording.kind_name }}</td>
+      <td class="duration">{{ recording.duration_seconds | duration }}</td>
+      <td>{{ recording.created_at[:10] }}</td>
+      <td class="status">{{ recording.status | status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No Recordings yet. <a href="/upload">Upload one</a>.</p>
+{% endif %}
+{% endblock %}

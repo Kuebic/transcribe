@@ -5,6 +5,8 @@ description = "LAN-only web app that turns audio Recordings into Transcripts wit
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.32",
     "uvicorn>=0.30",
 ]
 
