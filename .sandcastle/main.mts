@@ -33,15 +33,20 @@ import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
 const MAX_ITERATIONS = 10;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
-// npm install ensures the sandbox always has fresh dependencies.
+// `uv sync` installs the Python project's dependencies. The guard lets the
+// very first ticket (which creates pyproject.toml) run before one exists.
 const hooks = {
-  sandbox: { onSandboxReady: [{ command: "npm install" }] },
+  sandbox: {
+    onSandboxReady: [
+      { command: "sh -c 'test -f pyproject.toml && uv sync || true'" },
+    ],
+  },
 };
 
-// Copy node_modules from the host into the worktree before each sandbox
-// starts. Avoids a full npm install from scratch; the hook above handles
-// platform-specific binaries and any packages added since the last copy.
-const copyToWorktree = ["node_modules"];
+// Nothing is copied from the host: a Python .venv embeds absolute paths and
+// would not survive the move into the container. The uv cache inside the
+// image keeps repeated syncs cheap.
+const copyToWorktree: string[] = [];
 
 // ---------------------------------------------------------------------------
 // Main loop
