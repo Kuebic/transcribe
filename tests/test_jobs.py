@@ -9,6 +9,11 @@ def status_on_page(page: str) -> str:
     return re.search(r'<dd class="status">(.*?)</dd>', page, re.S).group(1).strip()
 
 
+def shows_utc_time(page: str, label: str) -> bool:
+    pattern = rf"{label}</dt>\s*<dd>\d{{4}}-\d{{2}}-\d{{2}} \d{{2}}:\d{{2}}:\d{{2}} UTC</dd>"
+    return re.search(pattern, page) is not None
+
+
 def segments_on_page(page: str) -> list[str]:
     return [
         re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", item)).strip()
@@ -107,12 +112,12 @@ def test_job_is_transcribing_with_a_start_time_while_the_transcriber_runs(client
     process_next_job(data_dir, transcriber)
 
     assert status_on_page(seen["page"]) == "Transcribing"
-    assert re.search(r"Started</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC</dd>", seen["page"])
+    assert shows_utc_time(seen["page"], "Started")
     assert segments_on_page(seen["page"]) == []
 
     page = client.get(path).text
-    assert re.search(r"Started</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC</dd>", page)
-    assert re.search(r"Finished</dt>\s*<dd>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC</dd>", page)
+    assert shows_utc_time(page, "Started")
+    assert shows_utc_time(page, "Finished")
 
 
 def test_queued_recording_shows_no_transcript_yet(client, data_dir, transcriber):

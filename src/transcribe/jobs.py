@@ -22,9 +22,10 @@ def process_next_job(data_dir: Path, transcriber: Transcriber) -> int | None:
             job = conn.execute(CLAIM_OLDEST_QUEUED).fetchone()
         if job is None:
             return None
+        job_id, recording_id = job["id"], job["recording_id"]
         recording = conn.execute(
             "SELECT audio_path, language_requested FROM recordings WHERE id = ?",
-            (job["recording_id"],),
+            (recording_id,),
         ).fetchone()
 
         try:
@@ -38,30 +39,30 @@ def process_next_job(data_dir: Path, transcriber: Transcriber) -> int | None:
                     UPDATE jobs SET status = 'failed', finished_at = CURRENT_TIMESTAMP, error = ?
                     WHERE id = ?
                     """,
-                    (str(error) or type(error).__name__, job["id"]),
+                    (str(error) or type(error).__name__, job_id),
                 )
-            return job["id"]
+            return job_id
 
         with conn:
-            conn.execute("DELETE FROM segments WHERE recording_id = ?", (job["recording_id"],))
+            conn.execute("DELETE FROM segments WHERE recording_id = ?", (recording_id,))
             conn.executemany(
                 """
                 INSERT INTO segments (recording_id, "index", start_seconds, end_seconds, text)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 [
-                    (job["recording_id"], index, segment.start, segment.end, segment.text.strip())
+                    (recording_id, index, segment.start, segment.end, segment.text.strip())
                     for index, segment in enumerate(transcription.segments)
                 ],
             )
             conn.execute(
                 "UPDATE recordings SET language_detected = ?, model_name = ? WHERE id = ?",
-                (transcription.language, transcription.model, job["recording_id"]),
+                (transcription.language, transcription.model, recording_id),
             )
             conn.execute(
                 "UPDATE jobs SET status = 'done', finished_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (job["id"],),
+                (job_id,),
             )
-        return job["id"]
+        return job_id
     finally:
         conn.close()
