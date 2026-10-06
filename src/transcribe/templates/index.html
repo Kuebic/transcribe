@@ -13,7 +13,7 @@
       <td>{{ recording.kind_name }}</td>
       <td class="duration">{{ recording.duration_seconds | duration }}</td>
       <td>{{ recording.created_at[:10] }}</td>
-      <td class="status">{{ recording.status | status }}</td>
+      <td class="status">{% include "status.html" %}</td>
     </tr>
     {% endfor %}
   </tbody>

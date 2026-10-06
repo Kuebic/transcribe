@@ -13,6 +13,18 @@ RETURNING id, recording_id
 """
 
 
+def requeue_interrupted_jobs(data_dir: Path) -> None:
+    """Put Jobs a previous process left Transcribing back in the queue to start over."""
+    conn = connect(Path(data_dir) / DB_FILENAME)
+    try:
+        with conn:
+            conn.execute(
+                "UPDATE jobs SET status = 'queued', started_at = NULL WHERE status = 'transcribing'"
+            )
+    finally:
+        conn.close()
+
+
 def process_next_job(data_dir: Path, transcriber: Transcriber) -> int | None:
     """Transcribe the oldest Queued Job's Recording; returns the Job id, or None when none is Queued."""
     data_dir = Path(data_dir)

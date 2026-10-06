@@ -1,12 +1,8 @@
 import re
 
-from helpers import list_rows, recording_path, upload, wav_bytes
+from helpers import list_rows, recording_path, status_on_page, text_of, upload, wav_bytes
 from transcribe.jobs import process_next_job
 from transcribe.transcriber import Segment
-
-
-def status_on_page(page: str) -> str:
-    return re.search(r'<dd class="status">(.*?)</dd>', page, re.S).group(1).strip()
 
 
 def shows_utc_time(page: str, label: str) -> bool:
@@ -15,10 +11,7 @@ def shows_utc_time(page: str, label: str) -> bool:
 
 
 def segments_on_page(page: str) -> list[str]:
-    return [
-        re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", item)).strip()
-        for item in re.findall(r'<li class="segment".*?</li>', page, re.S)
-    ]
+    return [text_of(item) for item in re.findall(r'<li class="segment".*?</li>', page, re.S)]
 
 
 def test_process_next_job_does_nothing_when_no_job_is_queued(client, data_dir, transcriber):
@@ -111,7 +104,7 @@ def test_job_is_transcribing_with_a_start_time_while_the_transcriber_runs(client
     transcriber.during = look_at_page
     process_next_job(data_dir, transcriber)
 
-    assert status_on_page(seen["page"]) == "Transcribing"
+    assert status_on_page(seen["page"]).startswith("Transcribing")
     assert shows_utc_time(seen["page"], "Started")
     assert segments_on_page(seen["page"]) == []
 

@@ -1,0 +1,3 @@
+<span class="job-status"{% if recording.status is live %} hx-get="/recordings/{{ recording.id }}/status{% if reload %}?reload=1{% endif %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {{- recording.status | status }}{% if recording.status == "transcribing" %} for <span class="duration">{{ recording.running_seconds | duration }}</span>{% endif -%}
+</span>

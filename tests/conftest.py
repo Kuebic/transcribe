@@ -45,5 +45,5 @@ def transcriber() -> FakeTranscriber:
 
 @pytest.fixture
 def client(data_dir: Path, transcriber: FakeTranscriber):
-    with TestClient(create_app(data_dir=data_dir, transcriber=transcriber)) as c:
+    with TestClient(create_app(data_dir=data_dir, transcriber=transcriber, start_worker=False)) as c:
         yield c

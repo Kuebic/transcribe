@@ -1,18 +1,21 @@
 import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from transcribe import recordings
 from transcribe.db import DB_FILENAME, connect, init_db
+from transcribe.jobs import requeue_interrupted_jobs
 from transcribe.limits import BodySizeLimit
 from transcribe.media import probe_duration
 from transcribe.transcriber import Transcriber
+from transcribe.worker import Worker
 
 MAX_UPLOAD_BYTES = 2 * 1024**3
 
@@ -51,6 +54,9 @@ JOB_STATUS_LABELS = {
     "failed": "Failed",
 }
 
+# Statuses a Job can still move on from; pages poll for a new status only while in one of these.
+LIVE_STATUSES = ("queued", "transcribing")
+
 
 def format_duration(seconds: float | None) -> str:
     if seconds is None:
@@ -71,24 +77,40 @@ def create_app(
     transcriber: Transcriber,
     *,
     max_upload_bytes: int = MAX_UPLOAD_BYTES,
+    start_worker: bool = True,
 ) -> FastAPI:
+    """Tests pass start_worker=False and drive the queue with process_next_job() themselves."""
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "audio").mkdir(exist_ok=True)
     db_path = data_dir / DB_FILENAME
     init_db(db_path)
+    requeue_interrupted_jobs(data_dir)
+    worker = Worker(data_dir, transcriber)
 
-    app = FastAPI(title="Transcribe")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if start_worker:
+            worker.start()
+        try:
+            yield
+        finally:
+            worker.stop()
+
+    app = FastAPI(title="Transcribe", lifespan=lifespan)
     app.state.data_dir = data_dir
     app.state.db_path = db_path
     app.state.transcriber = transcriber
+    app.state.worker = worker
     app.add_middleware(BodySizeLimit, max_bytes=max_upload_bytes)
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
     templates.env.filters["duration"] = format_duration
     templates.env.filters["timestamp"] = format_timestamp
     templates.env.filters["status"] = lambda status: JOB_STATUS_LABELS.get(status, "—")
     templates.env.filters["language"] = lambda code: LANGUAGES.get(code or AUTO_DETECT, code)
+    templates.env.tests["live"] = lambda status: status in LIVE_STATUSES
 
     @contextmanager
     def database() -> Iterator[sqlite3.Connection]:
@@ -179,6 +201,7 @@ def create_app(
                 duration_seconds=probe_duration(data_dir / audio_path),
                 language_requested=None if language == AUTO_DETECT else language,
             )
+        worker.wake()
         return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
 
     @app.get("/recordings/{recording_id}", response_class=HTMLResponse)
@@ -191,5 +214,19 @@ def create_app(
         return templates.TemplateResponse(
             request, "recording.html", {"recording": recording, "segments": segments}
         )
+
+    @app.get("/recordings/{recording_id}/status", response_class=HTMLResponse)
+    def recording_status(request: Request, recording_id: int, reload: bool = False):
+        """The polled status partial; with reload, a finished Job reloads the whole Recording page."""
+        with database() as conn:
+            recording = recordings.get_recording(conn, recording_id)
+        if recording is None:
+            raise HTTPException(status_code=404, detail="No such Recording")
+        response = templates.TemplateResponse(
+            request, "status.html", {"recording": recording, "reload": reload}
+        )
+        if reload and recording["status"] not in LIVE_STATUSES:
+            response.headers["HX-Refresh"] = "true"
+        return response
 
     return app

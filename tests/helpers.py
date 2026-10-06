@@ -43,3 +43,11 @@ def recording_path(response) -> str:
 
 def list_rows(client: TestClient) -> list[str]:
     return re.findall(r"<tr class=\"recording\".*?</tr>", client.get("/").text, re.S)
+
+
+def text_of(html: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html)).strip()
+
+
+def status_on_page(page: str) -> str:
+    return text_of(re.search(r'<dd class="status">(.*?)</dd>', page, re.S).group(1))

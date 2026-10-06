@@ -102,7 +102,10 @@ RECORDING_SELECT = """
 SELECT
     r.id, r.title, r.original_filename, r.duration_seconds, r.language_requested,
     r.language_detected, r.model_name, r.created_at, k.name AS kind_name,
-    j.status, j.started_at, j.finished_at
+    j.status, j.started_at, j.finished_at,
+    CASE WHEN j.status = 'transcribing'
+        THEN strftime('%s', 'now') - strftime('%s', j.started_at)
+    END AS running_seconds
 FROM recordings r
 JOIN kinds k ON k.id = r.kind_id
 LEFT JOIN jobs j ON j.id = (SELECT MAX(id) FROM jobs WHERE recording_id = r.id)

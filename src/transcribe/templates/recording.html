@@ -4,7 +4,7 @@
 <h1>{{ recording.title }}</h1>
 <dl>
   <dt>Kind</dt><dd>{{ recording.kind_name }}</dd>
-  <dt>Status</dt><dd class="status">{{ recording.status | status }}</dd>
+  <dt>Status</dt><dd class="status">{% with reload = true %}{% include "status.html" %}{% endwith %}</dd>
   <dt>Duration</dt><dd class="duration">{{ recording.duration_seconds | duration }}</dd>
   <dt>Uploaded</dt><dd>{{ recording.created_at }} UTC</dd>
   {% if recording.started_at %}<dt>Started</dt><dd>{{ recording.started_at }} UTC</dd>{% endif %}
