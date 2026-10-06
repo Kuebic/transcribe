@@ -122,6 +122,12 @@ def create_app(
         finally:
             conn.close()
 
+    def recording_or_404(conn: sqlite3.Connection, recording_id: int) -> sqlite3.Row:
+        recording = recordings.get_recording(conn, recording_id)
+        if recording is None:
+            raise HTTPException(status_code=404, detail="No such Recording")
+        return recording
+
     def upload_form(
         request: Request,
         *,
@@ -209,10 +215,8 @@ def create_app(
     @app.get("/recordings/{recording_id}", response_class=HTMLResponse)
     def recording_page(request: Request, recording_id: int):
         with database() as conn:
-            recording = recordings.get_recording(conn, recording_id)
+            recording = recording_or_404(conn, recording_id)
             segments = recordings.list_segments(conn, recording_id)
-        if recording is None:
-            raise HTTPException(status_code=404, detail="No such Recording")
         return templates.TemplateResponse(
             request, "recording.html", {"recording": recording, "segments": segments}
         )
@@ -221,20 +225,15 @@ def create_app(
     def audio(recording_id: int):
         """The original audio; FileResponse answers Range requests so the player can seek."""
         with database() as conn:
-            recording = recordings.get_recording(conn, recording_id)
-        if recording is None:
-            raise HTTPException(status_code=404, detail="No such Recording")
-        audio_path = recording["audio_path"]
+            audio_path = recording_or_404(conn, recording_id)["audio_path"]
         if audio_path is None or not (data_dir / audio_path).is_file():
             raise HTTPException(status_code=404, detail="This Recording has no audio")
         return FileResponse(data_dir / audio_path, media_type=recordings.audio_content_type(audio_path))
 
     def transcript_text(recording_id: int, render: Callable[[list[Segment]], str]) -> PlainTextResponse:
         with database() as conn:
-            recording = recordings.get_recording(conn, recording_id)
+            recording = recording_or_404(conn, recording_id)
             rows = recordings.list_segments(conn, recording_id)
-        if recording is None:
-            raise HTTPException(status_code=404, detail="No such Recording")
         if recording["status"] != "done":
             raise HTTPException(status_code=404, detail="No Transcript until the Job is Done")
         segments = [Segment(row["start_seconds"], row["end_seconds"], row["text"]) for row in rows]
@@ -252,8 +251,7 @@ def create_app(
     def retry(recording_id: int):
         """Queue a fresh Job for a Failed Recording; does nothing while a Job is live or Done."""
         with database() as conn:
-            if recordings.get_recording(conn, recording_id) is None:
-                raise HTTPException(status_code=404, detail="No such Recording")
+            recording_or_404(conn, recording_id)
             if recordings.retry_recording(conn, recording_id):
                 worker.wake()
         return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
@@ -262,9 +260,7 @@ def create_app(
     def recording_status(request: Request, recording_id: int, reload: bool = False):
         """The polled status partial; with reload, a finished Job reloads the whole Recording page."""
         with database() as conn:
-            recording = recordings.get_recording(conn, recording_id)
-        if recording is None:
-            raise HTTPException(status_code=404, detail="No such Recording")
+            recording = recording_or_404(conn, recording_id)
         response = templates.TemplateResponse(
             request, "status.html", {"recording": recording, "reload": reload}
         )

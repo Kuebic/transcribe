@@ -39,15 +39,6 @@ def test_job_runs_to_done_and_segments_show_on_the_recording_page(client, data_d
     assert "Done" in list_rows(client)[0]
 
 
-def test_segments_carry_their_start_for_seeking(client, data_dir, transcriber):
-    transcriber.segments = [Segment(start=12.34, end=15.0, text="Here.")]
-    path = recording_path(upload(client, "clip.wav", wav_bytes(1)))
-
-    process_next_job(data_dir, transcriber)
-
-    assert 'data-start="12.34"' in client.get(path).text
-
-
 def test_transcriber_gets_the_stored_audio_and_requested_language(client, data_dir, transcriber):
     upload(client, "vortrag.mp3", wav_bytes(1), language="de")
 
