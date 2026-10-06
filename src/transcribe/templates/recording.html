@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ recording.title }} · Transcribe{% endblock %}
-{% block scripts %}{% if recording.status == "done" %}<script src="/static/copy.js" defer></script>{% endif %}{% endblock %}
+{% block scripts %}
+{%- if recording.status == "done" %}<script src="/static/copy.js" defer></script>{% endif %}
+{%- if recording.audio_path %}<script src="/static/playback.js" defer></script>{% endif %}
+{%- endblock %}
 {% block content %}
 <h1>{{ recording.title }}</h1>
 <dl>
@@ -15,6 +18,9 @@
   {% if recording.model_name %}<dt>Model</dt><dd>{{ recording.model_name }}</dd>{% endif %}
   <dt>Original name</dt><dd>{{ recording.original_filename }}</dd>
 </dl>
+{% if recording.audio_path %}
+<audio class="player" controls preload="metadata" src="/recordings/{{ recording.id }}/audio"></audio>
+{% endif %}
 {% if recording.status == "failed" %}
 <form method="post" action="/recordings/{{ recording.id }}/retry"><button type="submit">Retry</button></form>
 {% endif %}
@@ -28,7 +34,7 @@
 {% endif %}
 <ol class="transcript">
   {% for segment in segments %}
-  <li class="segment" data-start="{{ segment.start_seconds }}"><span class="timestamp">{{ segment.start_seconds | timestamp }}</span> {{ segment.text }}</li>
+  <li class="segment" data-start="{{ segment.start_seconds }}" data-end="{{ segment.end_seconds }}"><span class="timestamp">{{ segment.start_seconds | timestamp }}</span> {{ segment.text }}</li>
   {% endfor %}
 </ol>
 {% endif %}

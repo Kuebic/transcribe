@@ -8,7 +8,20 @@ from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import BinaryIO
 
-ACCEPTED_EXTENSIONS = ("m4a", "mp3", "ogg", "opus", "wav", "flac", "aac", "webm")
+# The content type each accepted extension is served with; spelled out because Python's
+# mimetypes table does not know all of them on every platform.
+AUDIO_CONTENT_TYPES = {
+    "m4a": "audio/mp4",
+    "mp3": "audio/mpeg",
+    "ogg": "audio/ogg",
+    "opus": "audio/ogg",
+    "wav": "audio/wav",
+    "flac": "audio/flac",
+    "aac": "audio/aac",
+    "webm": "audio/webm",
+}
+
+ACCEPTED_EXTENSIONS = tuple(AUDIO_CONTENT_TYPES)
 
 CHUNK_BYTES = 1024 * 1024
 
@@ -17,6 +30,11 @@ def audio_extension(filename: str) -> str | None:
     """The lower-cased extension if it is an accepted audio format, else None."""
     extension = PurePath(filename).suffix.lstrip(".").lower()
     return extension if extension in ACCEPTED_EXTENSIONS else None
+
+
+def audio_content_type(audio_path: str) -> str:
+    """The content type to serve a kept audio file with; its extension was accepted at upload."""
+    return AUDIO_CONTENT_TYPES[audio_extension(audio_path)]
 
 
 def title_from_filename(filename: str) -> str:
@@ -100,7 +118,7 @@ def create_recording(
 
 RECORDING_SELECT = """
 SELECT
-    r.id, r.title, r.original_filename, r.duration_seconds, r.language_requested,
+    r.id, r.title, r.original_filename, r.audio_path, r.duration_seconds, r.language_requested,
     r.language_detected, r.model_name, r.created_at, k.name AS kind_name,
     j.status, j.started_at, j.finished_at, j.not_before, j.error,
     CASE WHEN j.status = 'transcribing'

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -216,6 +216,18 @@ def create_app(
         return templates.TemplateResponse(
             request, "recording.html", {"recording": recording, "segments": segments}
         )
+
+    @app.get("/recordings/{recording_id}/audio", response_class=FileResponse)
+    def audio(recording_id: int):
+        """The original audio; FileResponse answers Range requests so the player can seek."""
+        with database() as conn:
+            recording = recordings.get_recording(conn, recording_id)
+        if recording is None:
+            raise HTTPException(status_code=404, detail="No such Recording")
+        audio_path = recording["audio_path"]
+        if audio_path is None or not (data_dir / audio_path).is_file():
+            raise HTTPException(status_code=404, detail="This Recording has no audio")
+        return FileResponse(data_dir / audio_path, media_type=recordings.audio_content_type(audio_path))
 
     def transcript_text(recording_id: int, render: Callable[[list[Segment]], str]) -> PlainTextResponse:
         with database() as conn:

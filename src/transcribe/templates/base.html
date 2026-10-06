@@ -21,6 +21,9 @@
     dt { font-weight: bold; }
     .transcript { list-style: none; padding: 0; }
     .segment { margin: .4rem 0; }
+    .player { display: block; width: 100%; position: sticky; top: 0; margin: 1rem 0; z-index: 1; }
+    .seekable .segment { cursor: pointer; }
+    .segment.current { background: #fff3c4; }
     .timestamp { color: #666; font-variant-numeric: tabular-nums; margin-right: .4rem; }
     .copy-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
     .copy.copied { background: #dfd; border-color: #080; }
