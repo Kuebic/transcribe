@@ -10,6 +10,12 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.optional-dependencies]
+# Only the container installs Whisper (and torch with it); tests use a fake Transcriber.
+whisper = [
+    "openai-whisper>=20250625",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8",

@@ -7,19 +7,12 @@ import uvicorn
 from fastapi import FastAPI
 
 from transcribe.app import create_app
-from transcribe.transcriber import Transcription
-
-
-class UnavailableTranscriber:
-    """Stands in until the Whisper Transcriber is bound; every call fails loudly."""
-
-    def transcribe(self, audio_path: Path, language: str | None = None) -> Transcription:
-        raise RuntimeError("No Whisper Transcriber is configured in this build")
+from transcribe.whisper import WhisperTranscriber
 
 
 def build_app() -> FastAPI:
     data_dir = Path(os.environ.get("TRANSCRIBE_DATA_DIR", "/data"))
-    return create_app(data_dir=data_dir, transcriber=UnavailableTranscriber())
+    return create_app(data_dir=data_dir, transcriber=WhisperTranscriber(models_dir=data_dir / "models"))
 
 
 def serve() -> None:

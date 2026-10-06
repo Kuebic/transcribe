@@ -1,0 +1,15 @@
+services:
+  transcribe:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
