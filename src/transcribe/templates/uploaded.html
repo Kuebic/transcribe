@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Uploaded · Transcribe{% endblock %}
+{% block content %}
+<h1>Uploaded</h1>
+<table>
+  <thead>
+    <tr><th>File</th><th>Result</th><th>Recording</th></tr>
+  </thead>
+  <tbody>
+    {% for result in results %}
+    <tr class="uploaded">
+      <td>{{ result.filename }}</td>
+      <td class="{{ 'new' if result.new else 'duplicate' }}">{{ "New" if result.new else "Already uploaded" }}</td>
+      <td><a href="/recordings/{{ result.recording.id }}">{{ result.recording.title }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><a href="/upload">Upload more</a> · <a href="/">All Recordings</a></p>
+{% endblock %}

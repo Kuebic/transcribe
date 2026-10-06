@@ -63,6 +63,16 @@ def upload(client: TestClient, filename: str, content: bytes, kind: str = "lectu
     )
 
 
+def upload_many(client: TestClient, files: dict[str, bytes], kind: str = "lecture", **fields):
+    data = {"kind_id": kind_id(client, kind), **fields}
+    return client.post(
+        "/upload",
+        data=data,
+        files=[("files", (name, content, "application/octet-stream")) for name, content in files.items()],
+        follow_redirects=False,
+    )
+
+
 def recording_path(response) -> str:
     assert response.status_code == 303, response.text
     location = response.headers["location"]

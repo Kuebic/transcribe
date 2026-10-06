@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Upload · Transcribe{% endblock %}
+{% block scripts %}<script src="/static/upload.js" defer></script>{% endblock %}
 {% block content %}
-<h1>Upload a Recording</h1>
+<h1>Upload Recordings</h1>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post" action="/upload" enctype="multipart/form-data">
+<form class="upload" method="post" action="/upload" enctype="multipart/form-data">
   <label>Audio
-    <input type="file" name="files" required
+    <input type="file" name="files" multiple required
            accept="{% for ext in accepted_extensions %}.{{ ext }}{% if not loop.last %},{% endif %}{% endfor %}">
   </label>
   <label>Kind
@@ -16,7 +17,7 @@
     </select>
   </label>
   <label>Title
-    <input type="text" name="title" value="{{ title }}" placeholder="Defaults to the filename">
+    <input type="text" name="title" value="{{ title }}" placeholder="Defaults to the filename; several files keep their filenames">
   </label>
   <label>Language
     <select name="language">
@@ -26,5 +27,9 @@
     </select>
   </label>
   <button type="submit">Upload</button>
+  <div class="upload-progress" hidden aria-live="polite">
+    <progress max="100" value="0"></progress>
+    <p class="upload-status"></p>
+  </div>
 </form>
 {% endblock %}

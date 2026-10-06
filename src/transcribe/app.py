@@ -21,6 +21,10 @@ MAX_UPLOAD_BYTES = 2 * 1024**3
 
 DEFAULT_LANGUAGE = "en"
 
+# Remembers the Kind of the last upload so the next upload form starts on it.
+LAST_KIND_COOKIE = "last_kind_id"
+LAST_KIND_MAX_AGE = 365 * 24 * 3600
+
 # Not a Whisper code: asks Whisper to detect the language. Non-empty because an empty form
 # field counts as missing and would fall back to the default language.
 AUTO_DETECT = "auto"
@@ -165,24 +169,58 @@ def create_app(
 
     @app.get("/upload", response_class=HTMLResponse)
     def upload_page(request: Request):
-        return upload_form(request)
+        last_kind_id = request.cookies.get(LAST_KIND_COOKIE, "")
+        return upload_form(request, kind_id=int(last_kind_id) if last_kind_id.isdigit() else None)
+
+    def store_upload(
+        conn: sqlite3.Connection,
+        upload: UploadFile,
+        *,
+        title: str | None,
+        kind_id: int,
+        language_requested: str | None,
+    ) -> tuple[int, bool]:
+        """Keep one uploaded file as a new Recording, unless its content is already stored.
+
+        Returns the Recording's id and whether it is new. Without a title it is named after the file.
+        """
+        filename = upload.filename or ""
+        staged = recordings.stage_audio(upload.file, data_dir)
+        existing_id = recordings.find_recording_by_hash(conn, staged.content_hash)
+        if existing_id is not None:
+            staged.discard()
+            return existing_id, False
+        audio_path = recordings.keep_audio(staged, data_dir, recordings.audio_extension(filename))
+        recording_id = recordings.create_recording(
+            conn,
+            original_filename=filename,
+            content_hash=staged.content_hash,
+            audio_path=audio_path,
+            duration_seconds=probe_duration(data_dir / audio_path),
+            title=title or recordings.title_from_filename(filename),
+            kind_id=kind_id,
+            language_requested=language_requested,
+        )
+        return recording_id, True
 
     @app.post("/upload")
     def upload(
         request: Request,
-        files: Annotated[UploadFile, File()],
+        files: Annotated[list[UploadFile], File()],
         kind_id: Annotated[int, Form()],
         title: Annotated[str, Form()] = "",
         language: Annotated[str, Form()] = DEFAULT_LANGUAGE,
     ):
-        filename = files.filename or ""
+        """One Recording per file; a file whose content is already stored opens the existing one."""
         retry = {"kind_id": kind_id, "title": title, "language": language}
-        extension = recordings.audio_extension(filename)
-        if extension is None:
+        unsupported = [f.filename or "" for f in files if recordings.audio_extension(f.filename or "") is None]
+        if unsupported:
+            names = ", ".join(f"“{name}”" for name in unsupported)
             accepted = ", ".join(recordings.ACCEPTED_EXTENSIONS)
             return upload_form(
                 request,
-                error=f"“{filename}” is not a supported audio format. Accepted: {accepted}.",
+                error=f"{names} {'is' if len(unsupported) == 1 else 'are'} not a supported audio format. "
+                f"Accepted: {accepted}.",
                 **retry,
             )
         if language not in LANGUAGES:
@@ -191,26 +229,28 @@ def create_app(
             if not recordings.kind_exists(conn, kind_id):
                 return upload_form(request, error="Choose one of the listed Kinds.", **retry)
 
-        staged = recordings.stage_audio(files.file, data_dir)
+        recording = {
+            # A typed title only fits a single file; several files are each named after their file.
+            "title": title.strip() if len(files) == 1 else None,
+            "kind_id": kind_id,
+            "language_requested": None if language == AUTO_DETECT else language,
+        }
         with database() as conn:
-            existing_id = recordings.find_recording_by_hash(conn, staged.content_hash)
-            if existing_id is not None:
-                staged.discard()
-                return RedirectResponse(f"/recordings/{existing_id}", status_code=303)
-
-            audio_path = recordings.keep_audio(staged, data_dir, extension)
-            recording_id = recordings.create_recording(
-                conn,
-                title=title.strip() or recordings.title_from_filename(filename),
-                kind_id=kind_id,
-                original_filename=filename,
-                content_hash=staged.content_hash,
-                audio_path=audio_path,
-                duration_seconds=probe_duration(data_dir / audio_path),
-                language_requested=None if language == AUTO_DETECT else language,
-            )
+            stored = [(f.filename, *store_upload(conn, f, **recording)) for f in files]
+            results = [
+                {"filename": filename, "new": new, "recording": recordings.get_recording(conn, recording_id)}
+                for filename, recording_id, new in stored
+            ]
         worker.wake()
-        return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
+
+        if len(results) == 1:
+            response = RedirectResponse(f"/recordings/{results[0]['recording']['id']}", status_code=303)
+        else:
+            response = templates.TemplateResponse(request, "uploaded.html", {"results": results})
+        response.set_cookie(
+            LAST_KIND_COOKIE, str(kind_id), max_age=LAST_KIND_MAX_AGE, httponly=True, samesite="lax"
+        )
+        return response
 
     @app.get("/recordings/{recording_id}", response_class=HTMLResponse)
     def recording_page(request: Request, recording_id: int):
