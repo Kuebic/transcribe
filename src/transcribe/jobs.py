@@ -84,8 +84,8 @@ def process_next_job(
     """Transcribe the oldest Queued Job's Recording that is due; returns the Job id, or None.
 
     Running out of GPU memory queues the Job again after a growing wait, counted from the
-    failure; any other error, or running out on the last attempt, fails it. Tests pin the clock
-    with now.
+    failure; any other error, or running out on the last attempt, fails it. A Recording deleted
+    meanwhile is skipped. Tests pin the clock with now.
     """
     data_dir = Path(data_dir)
     conn = connect(data_dir / DB_FILENAME)
@@ -101,8 +101,12 @@ def process_next_job(
             "SELECT audio_path, language_requested FROM recordings WHERE id = ?",
             (recording_id,),
         ).fetchone()
+        if recording is None:
+            return job_id
 
         try:
+            if recording["audio_path"] is None:
+                raise FileNotFoundError("The audio of this Recording was deleted")
             transcription = transcriber.transcribe(
                 data_dir / recording["audio_path"], recording["language_requested"]
             )
@@ -111,6 +115,13 @@ def process_next_job(
             return job_id
 
         with conn:
+            done = conn.execute(
+                "UPDATE jobs SET status = 'done', finished_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (job_id,),
+            )
+            if done.rowcount == 0:
+                # The Recording was deleted while it was being transcribed, taking its Job with it.
+                return job_id
             conn.execute("DELETE FROM segments WHERE recording_id = ?", (recording_id,))
             conn.executemany(
                 """
@@ -125,10 +136,6 @@ def process_next_job(
             conn.execute(
                 "UPDATE recordings SET language_detected = ?, model_name = ? WHERE id = ?",
                 (transcription.language, transcription.model, recording_id),
-            )
-            conn.execute(
-                "UPDATE jobs SET status = 'done', finished_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (job_id,),
             )
         return job_id
     finally:

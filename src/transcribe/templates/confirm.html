@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ recording.title }} · Transcribe{% endblock %}
+{% block content %}
+<h1>{{ recording.title }}</h1>
+<p>{{ question }}</p>
+<form method="post" action="/recordings/{{ recording.id }}/{{ action }}">
+  <button type="submit" class="danger">Delete</button>
+  <a href="/recordings/{{ recording.id }}">Cancel</a>
+</form>
+{% endblock %}

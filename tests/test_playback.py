@@ -3,22 +3,10 @@ import re
 import pytest
 
 from helpers import recording_path, upload, wav_bytes
-from transcribe.db import DB_FILENAME, connect
 from transcribe.jobs import process_next_job
 from transcribe.transcriber import Segment
 
 AUDIO = wav_bytes(1)
-
-
-def without_audio(data_dir, path: str) -> None:
-    """Stands in for Delete audio until it exists: the Recording keeps everything but its audio."""
-    recording_id = int(path.rsplit("/", 1)[1])
-    conn = connect(data_dir / DB_FILENAME)
-    try:
-        with conn:
-            conn.execute("UPDATE recordings SET audio_path = NULL WHERE id = ?", (recording_id,))
-    finally:
-        conn.close()
 
 
 def player_src(page: str) -> str | None:
@@ -66,9 +54,9 @@ def test_audio_is_not_found_for_an_unknown_recording(client):
     assert client.get("/recordings/999/audio").status_code == 404
 
 
-def test_audio_is_not_found_once_the_recording_has_no_audio(client, data_dir):
+def test_audio_is_not_found_once_the_recording_has_no_audio(client):
     path = recording_path(upload(client, "anruf.m4a", AUDIO))
-    without_audio(data_dir, path)
+    client.post(f"{path}/delete-audio")
 
     assert client.get(f"{path}/audio").status_code == 404
 
@@ -86,7 +74,7 @@ def test_recording_page_has_a_player_for_its_audio(client):
 def test_recording_page_has_no_player_without_audio(client, data_dir, transcriber):
     path = recording_path(upload(client, "anruf.m4a", AUDIO))
     process_next_job(data_dir, transcriber)
-    without_audio(data_dir, path)
+    client.post(f"{path}/delete-audio")
 
     page = client.get(path).text
 

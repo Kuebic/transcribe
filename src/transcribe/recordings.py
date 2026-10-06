@@ -119,7 +119,7 @@ def create_recording(
 RECORDING_SELECT = """
 SELECT
     r.id, r.title, r.original_filename, r.audio_path, r.duration_seconds, r.language_requested,
-    r.language_detected, r.model_name, r.created_at, k.name AS kind_name,
+    r.language_detected, r.model_name, r.created_at, r.kind_id, k.name AS kind_name,
     j.status, j.started_at, j.finished_at, j.not_before, j.error,
     CASE WHEN j.status = 'transcribing'
         THEN strftime('%s', 'now') - strftime('%s', j.started_at)
@@ -165,3 +165,33 @@ def retry_recording(conn: sqlite3.Connection, recording_id: int) -> bool:
             (recording_id, recording_id),
         )
     return cursor.rowcount == 1
+
+
+def update_recording(
+    conn: sqlite3.Connection, recording_id: int, *, title: str | None = None, kind_id: int | None = None
+) -> None:
+    """Change the title and/or Kind; a field left as None keeps its value."""
+    with conn:
+        conn.execute(
+            "UPDATE recordings SET title = COALESCE(?, title), kind_id = COALESCE(?, kind_id) WHERE id = ?",
+            (title, kind_id, recording_id),
+        )
+
+
+def _remove_audio(conn: sqlite3.Connection, data_dir: Path, recording_id: int, statement: str) -> None:
+    """Run the statement on the Recording, then remove the audio file it had."""
+    with conn:
+        row = conn.execute("SELECT audio_path FROM recordings WHERE id = ?", (recording_id,)).fetchone()
+        conn.execute(statement, (recording_id,))
+    if row and row["audio_path"]:
+        (data_dir / row["audio_path"]).unlink(missing_ok=True)
+
+
+def delete_audio(conn: sqlite3.Connection, data_dir: Path, recording_id: int) -> None:
+    """Remove the Recording's audio file; the Recording and its Transcript stay."""
+    _remove_audio(conn, data_dir, recording_id, "UPDATE recordings SET audio_path = NULL WHERE id = ?")
+
+
+def delete_recording(conn: sqlite3.Connection, data_dir: Path, recording_id: int) -> None:
+    """Remove the Recording with its audio file; its Segments and Jobs go with it by cascade."""
+    _remove_audio(conn, data_dir, recording_id, "DELETE FROM recordings WHERE id = ?")

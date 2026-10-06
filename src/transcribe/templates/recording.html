@@ -6,6 +6,7 @@
 {%- endblock %}
 {% block content %}
 <h1>{{ recording.title }}</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
 <dl>
   <dt>Kind</dt><dd>{{ recording.kind_name }}</dd>
   <dt>Status</dt><dd class="status">{% with reload = true %}{% include "status.html" %}{% endwith %}</dd>
@@ -24,6 +25,26 @@
 {% if recording.status == "failed" %}
 <form method="post" action="/recordings/{{ recording.id }}/retry"><button type="submit">Retry</button></form>
 {% endif %}
+<details class="edit"{% if error %} open{% endif %}>
+  <summary>Edit</summary>
+  <form method="post" action="/recordings/{{ recording.id }}">
+    <label>Title
+      <input type="text" name="title" value="{{ recording.title }}" required>
+    </label>
+    <label>Kind
+      <select name="kind_id">
+        {% for kind in kinds %}
+        <option value="{{ kind.id }}"{% if kind.id == recording.kind_id %} selected{% endif %}>{{ kind.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Save</button>
+  </form>
+  <p class="delete-links">
+    {% if recording.audio_path %}<a href="/recordings/{{ recording.id }}/delete-audio">Delete audio…</a>{% endif %}
+    <a href="/recordings/{{ recording.id }}/delete">Delete Recording…</a>
+  </p>
+</details>
 {% if segments %}
 <h2>Transcript</h2>
 {% if recording.status == "done" %}

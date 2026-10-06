@@ -254,14 +254,80 @@ def create_app(
         )
         return response
 
-    @app.get("/recordings/{recording_id}", response_class=HTMLResponse)
-    def recording_page(request: Request, recording_id: int):
+    def recording_view(request: Request, recording_id: int, *, error: str | None = None) -> HTMLResponse:
         with database() as conn:
             recording = recording_or_404(conn, recording_id)
             segments = recordings.list_segments(conn, recording_id)
+            kinds = recordings.list_kinds(conn)
         return templates.TemplateResponse(
-            request, "recording.html", {"recording": recording, "segments": segments}
+            request,
+            "recording.html",
+            {"recording": recording, "segments": segments, "kinds": kinds, "error": error},
+            status_code=400 if error else 200,
         )
+
+    @app.get("/recordings/{recording_id}", response_class=HTMLResponse)
+    def recording_page(request: Request, recording_id: int):
+        return recording_view(request, recording_id)
+
+    @app.post("/recordings/{recording_id}")
+    def edit_recording(
+        request: Request,
+        recording_id: int,
+        title: Annotated[str | None, Form()] = None,
+        kind_id: Annotated[int | None, Form()] = None,
+    ):
+        """Change the title and/or Kind; a field left out keeps its value."""
+        with database() as conn:
+            recording_or_404(conn, recording_id)
+            if title is not None and not title.strip():
+                return recording_view(request, recording_id, error="The title cannot be blank.")
+            if kind_id is not None and not recordings.kind_exists(conn, kind_id):
+                return recording_view(request, recording_id, error="Choose one of the listed Kinds.")
+            recordings.update_recording(
+                conn, recording_id, title=title.strip() if title is not None else None, kind_id=kind_id
+            )
+        return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
+
+    def confirmation(request: Request, recording_id: int, action: str, question: str) -> HTMLResponse:
+        """The page a delete link leads to; only its form's POST deletes anything."""
+        with database() as conn:
+            recording = recording_or_404(conn, recording_id)
+        return templates.TemplateResponse(
+            request, "confirm.html", {"recording": recording, "action": action, "question": question}
+        )
+
+    @app.get("/recordings/{recording_id}/delete-audio", response_class=HTMLResponse)
+    def confirm_delete_audio(request: Request, recording_id: int):
+        return confirmation(
+            request,
+            recording_id,
+            "delete-audio",
+            "Delete the audio of this Recording? The Transcript stays; the audio cannot be played again.",
+        )
+
+    @app.post("/recordings/{recording_id}/delete-audio")
+    def delete_audio(recording_id: int):
+        with database() as conn:
+            recording_or_404(conn, recording_id)
+            recordings.delete_audio(conn, data_dir, recording_id)
+        return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
+
+    @app.get("/recordings/{recording_id}/delete", response_class=HTMLResponse)
+    def confirm_delete_recording(request: Request, recording_id: int):
+        return confirmation(
+            request,
+            recording_id,
+            "delete",
+            "Delete this Recording with its audio and Transcript? This cannot be undone.",
+        )
+
+    @app.post("/recordings/{recording_id}/delete")
+    def delete_recording(recording_id: int):
+        with database() as conn:
+            recording_or_404(conn, recording_id)
+            recordings.delete_recording(conn, data_dir, recording_id)
+        return RedirectResponse("/", status_code=303)
 
     @app.get("/recordings/{recording_id}/audio", response_class=FileResponse)
     def audio(recording_id: int):
