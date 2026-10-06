@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+SCHEMA_VERSION = 1
+
 SEED_KINDS = ("call", "lecture", "talk", "note")
 
 SCHEMA = """
@@ -53,9 +55,6 @@ def connect(db_path: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
-
-
-SCHEMA_VERSION = 1
 
 
 def init_db(db_path: Path) -> None:
