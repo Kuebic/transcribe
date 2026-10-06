@@ -98,7 +98,8 @@ def create_recording(
     return recording_id
 
 
-RECORDING_COLUMNS = """
+RECORDING_SELECT = """
+SELECT
     r.id, r.title, r.original_filename, r.duration_seconds, r.language_requested,
     r.language_detected, r.model_name, r.created_at, k.name AS kind_name, j.status
 FROM recordings r
@@ -110,9 +111,9 @@ LEFT JOIN jobs j ON j.id = (SELECT MAX(id) FROM jobs WHERE recording_id = r.id)
 def list_recordings(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """All Recordings newest first, each with its Kind name and latest Job status."""
     return conn.execute(
-        f"SELECT {RECORDING_COLUMNS} ORDER BY r.created_at DESC, r.id DESC"
+        f"{RECORDING_SELECT} ORDER BY r.created_at DESC, r.id DESC"
     ).fetchall()
 
 
 def get_recording(conn: sqlite3.Connection, recording_id: int) -> sqlite3.Row | None:
-    return conn.execute(f"SELECT {RECORDING_COLUMNS} WHERE r.id = ?", (recording_id,)).fetchone()
+    return conn.execute(f"{RECORDING_SELECT} WHERE r.id = ?", (recording_id,)).fetchone()

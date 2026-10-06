@@ -23,7 +23,7 @@ def test_healthz_returns_json(client):
 
 
 def test_first_start_creates_data_directory_with_database(client, data_dir):
-    assert (data_dir / "transcribe.sqlite3").is_file()
+    assert (data_dir / DB_FILENAME).is_file()
 
 
 def test_seeded_kinds_are_created_once(data_dir, transcriber):
@@ -64,4 +64,4 @@ def test_server_entrypoint_builds_app_from_data_dir_env(tmp_path, monkeypatch):
 
     with TestClient(build_app()) as c:
         assert c.get("/healthz").json() == {"status": "ok"}
-    assert (tmp_path / "served" / "transcribe.sqlite3").is_file()
+    assert (tmp_path / "served" / DB_FILENAME).is_file()
