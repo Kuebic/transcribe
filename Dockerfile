@@ -18,8 +18,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --extra whisper --no-install-project
 
 COPY src ./src
-COPY tests ./tests
 RUN uv sync --frozen --extra whisper
+COPY tests ./tests
 
 ENV PATH=/opt/venv/bin:$PATH \
     TRANSCRIBE_DATA_DIR=/data
