@@ -102,7 +102,7 @@ RECORDING_SELECT = """
 SELECT
     r.id, r.title, r.original_filename, r.duration_seconds, r.language_requested,
     r.language_detected, r.model_name, r.created_at, k.name AS kind_name,
-    j.status, j.started_at, j.finished_at,
+    j.status, j.started_at, j.finished_at, j.not_before, j.error,
     CASE WHEN j.status = 'transcribing'
         THEN strftime('%s', 'now') - strftime('%s', j.started_at)
     END AS running_seconds
@@ -129,3 +129,21 @@ def list_segments(conn: sqlite3.Connection, recording_id: int) -> list[sqlite3.R
         'SELECT start_seconds, end_seconds, text FROM segments WHERE recording_id = ? ORDER BY "index"',
         (recording_id,),
     ).fetchall()
+
+
+def retry_recording(conn: sqlite3.Connection, recording_id: int) -> bool:
+    """Queue a fresh Job if the Recording's latest Job Failed; earlier Jobs stay as history.
+
+    Returns whether a Job was queued; never while another Job of the Recording is still live.
+    """
+    with conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO jobs (recording_id)
+            SELECT ? WHERE (
+                SELECT status FROM jobs WHERE recording_id = ? ORDER BY id DESC LIMIT 1
+            ) = 'failed'
+            """,
+            (recording_id, recording_id),
+        )
+    return cursor.rowcount == 1

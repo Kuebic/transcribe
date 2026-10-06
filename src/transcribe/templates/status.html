@@ -1,3 +1,6 @@
 <span class="job-status"{% if recording.status is live %} hx-get="/recordings/{{ recording.id }}/status{% if reload %}?reload=1{% endif %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
-  {{- recording.status | status }}{% if recording.status == "transcribing" %} for <span class="duration">{{ recording.running_seconds | duration }}</span>{% endif -%}
+  {{- recording.status | status }}{% if recording.status == "transcribing" %} for <span class="duration">{{ recording.running_seconds | duration }}</span>
+  {%- elif recording.status == "queued" and recording.not_before %}, trying again after {{ recording.not_before }} UTC: <span class="job-error">{{ recording.error }}</span>
+  {%- elif recording.status == "failed" and recording.error %}: <span class="job-error">{{ recording.error }}</span>
+  {%- endif -%}
 </span>

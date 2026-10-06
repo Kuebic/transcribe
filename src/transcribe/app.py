@@ -219,6 +219,16 @@ def create_app(
             request, "recording.html", {"recording": recording, "segments": segments}
         )
 
+    @app.post("/recordings/{recording_id}/retry")
+    def retry(recording_id: int):
+        """Queue a fresh Job for a Failed Recording; does nothing while a Job is live or Done."""
+        with database() as conn:
+            if recordings.get_recording(conn, recording_id) is None:
+                raise HTTPException(status_code=404, detail="No such Recording")
+            if recordings.retry_recording(conn, recording_id):
+                worker.wake()
+        return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
+
     @app.get("/recordings/{recording_id}/status", response_class=HTMLResponse)
     def recording_status(request: Request, recording_id: int, reload: bool = False):
         """The polled status partial; with reload, a finished Job reloads the whole Recording page."""

@@ -14,6 +14,9 @@
   {% if recording.model_name %}<dt>Model</dt><dd>{{ recording.model_name }}</dd>{% endif %}
   <dt>Original name</dt><dd>{{ recording.original_filename }}</dd>
 </dl>
+{% if recording.status == "failed" %}
+<form method="post" action="/recordings/{{ recording.id }}/retry"><button type="submit">Retry</button></form>
+{% endif %}
 {% if segments %}
 <h2>Transcript</h2>
 <ol class="transcript">
