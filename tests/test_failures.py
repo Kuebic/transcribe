@@ -1,12 +1,11 @@
 import re
-import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from helpers import list_rows, recording_path, status_on_page, text_of, upload, wav_bytes
-from transcribe.db import DB_FILENAME
+from transcribe.db import DB_FILENAME, connect
 from transcribe.jobs import process_next_job
 
 # What Whisper reports when torch runs out of GPU memory (see whisper.failure_message).
@@ -15,8 +14,7 @@ OOM = RuntimeError("OutOfMemoryError: CUDA out of memory. Tried to allocate 20.0
 
 def jobs_of(data_dir, path: str) -> list[dict]:
     recording_id = int(path.rsplit("/", 1)[1])
-    conn = sqlite3.connect(data_dir / DB_FILENAME)
-    conn.row_factory = sqlite3.Row
+    conn = connect(data_dir / DB_FILENAME)
     try:
         rows = conn.execute(
             "SELECT * FROM jobs WHERE recording_id = ? ORDER BY id", (recording_id,)

@@ -1,5 +1,6 @@
 """Draining the Job queue: plain functions the app and worker call and tests call directly."""
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -47,6 +48,36 @@ def requeue_interrupted_jobs(data_dir: Path) -> None:
         conn.close()
 
 
+def record_failure(
+    conn: sqlite3.Connection,
+    job_id: int,
+    attempts: int,
+    error: Exception,
+    *,
+    now: datetime | None = None,
+) -> None:
+    """Queue the Job again after a wait if the GPU ran out of memory with attempts left, else fail it."""
+    message = str(error) or type(error).__name__
+    with conn:
+        if is_out_of_memory(error) and attempts < MAX_ATTEMPTS:
+            not_before = (now or datetime.now(UTC)) + OUT_OF_MEMORY_WAITS[attempts - 1]
+            conn.execute(
+                """
+                UPDATE jobs SET status = 'queued', started_at = NULL, not_before = ?, error = ?
+                WHERE id = ?
+                """,
+                (sqlite_time(not_before), message, job_id),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE jobs SET status = 'failed', finished_at = CURRENT_TIMESTAMP, error = ?
+                WHERE id = ?
+                """,
+                (message, job_id),
+            )
+
+
 def process_next_job(
     data_dir: Path, transcriber: Transcriber, *, now: datetime | None = None
 ) -> int | None:
@@ -76,26 +107,7 @@ def process_next_job(
                 data_dir / recording["audio_path"], recording["language_requested"]
             )
         except Exception as error:
-            message = str(error) or type(error).__name__
-            if is_out_of_memory(error) and attempts < MAX_ATTEMPTS:
-                not_before = (now or datetime.now(UTC)) + OUT_OF_MEMORY_WAITS[attempts - 1]
-                with conn:
-                    conn.execute(
-                        """
-                        UPDATE jobs SET status = 'queued', started_at = NULL, not_before = ?, error = ?
-                        WHERE id = ?
-                        """,
-                        (sqlite_time(not_before), message, job_id),
-                    )
-                return job_id
-            with conn:
-                conn.execute(
-                    """
-                    UPDATE jobs SET status = 'failed', finished_at = CURRENT_TIMESTAMP, error = ?
-                    WHERE id = ?
-                    """,
-                    (message, job_id),
-                )
+            record_failure(conn, job_id, attempts, error, now=now)
             return job_id
 
         with conn:
