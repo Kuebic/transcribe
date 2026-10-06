@@ -1,5 +1,7 @@
 import re
 
+import pytest
+
 from helpers import kind_id, list_rows, recording_path, status_on_page, upload, wav_bytes
 from transcribe.jobs import process_next_job
 
@@ -93,17 +95,19 @@ def test_editing_an_unknown_recording_is_not_found(client):
     assert client.post("/recordings/999", data={"title": "x"}).status_code == 404
 
 
-def test_delete_audio_asks_for_confirmation_before_acting(client, data_dir):
+@pytest.mark.parametrize("action", ["delete-audio", "delete"])
+def test_deletes_ask_for_confirmation_before_acting(client, data_dir, action):
     path = recording_path(upload(client, "anruf.m4a", AUDIO))
 
     page = client.get(path).text
-    assert f'href="{path}/delete-audio"' in page
-    assert f"{path}/delete-audio" not in form_actions(page)
+    assert f'href="{path}/{action}"' in page
+    assert f"{path}/{action}" not in form_actions(page)
 
-    confirmation = client.get(f"{path}/delete-audio")
+    confirmation = client.get(f"{path}/{action}")
     assert confirmation.status_code == 200
-    assert f"{path}/delete-audio" in form_actions(confirmation.text)
+    assert f"{path}/{action}" in form_actions(confirmation.text)
     assert f'href="{path}"' in confirmation.text
+    assert client.get(path).status_code == 200
     assert len(audio_files(data_dir)) == 1
 
 
@@ -131,21 +135,6 @@ def test_deleting_audio_of_a_queued_recording_fails_its_job_with_a_clear_error(c
 
     assert transcriber.calls == []
     assert status_on_page(client.get(path).text) == "Failed: The audio of this Recording was deleted"
-
-
-def test_delete_recording_asks_for_confirmation_before_acting(client, data_dir):
-    path = recording_path(upload(client, "anruf.m4a", AUDIO))
-
-    page = client.get(path).text
-    assert f'href="{path}/delete"' in page
-    assert f"{path}/delete" not in form_actions(page)
-
-    confirmation = client.get(f"{path}/delete")
-    assert confirmation.status_code == 200
-    assert f"{path}/delete" in form_actions(confirmation.text)
-    assert f'href="{path}"' in confirmation.text
-    assert client.get(path).status_code == 200
-    assert len(audio_files(data_dir)) == 1
 
 
 def test_delete_recording_removes_everything(client, data_dir, transcriber):

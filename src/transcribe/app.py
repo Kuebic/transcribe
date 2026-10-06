@@ -21,6 +21,8 @@ MAX_UPLOAD_BYTES = 2 * 1024**3
 
 DEFAULT_LANGUAGE = "en"
 
+UNKNOWN_KIND_ERROR = "Choose one of the listed Kinds."
+
 # Remembers the Kind of the last upload so the next upload form starts on it.
 LAST_KIND_COOKIE = "last_kind_id"
 LAST_KIND_MAX_AGE = 365 * 24 * 3600
@@ -228,7 +230,7 @@ def create_app(
             return upload_form(request, error=f"Unknown language “{language}”.", **retry)
         with database() as conn:
             if not recordings.kind_exists(conn, kind_id):
-                return upload_form(request, error="Choose one of the listed Kinds.", **retry)
+                return upload_form(request, error=UNKNOWN_KIND_ERROR, **retry)
 
         shared_fields = {
             # A typed title only fits a single file; several files are each named after their file.
@@ -280,13 +282,13 @@ def create_app(
         """Change the title and/or Kind; a field left out keeps its value."""
         with database() as conn:
             recording_or_404(conn, recording_id)
-            if title is not None and not title.strip():
-                return recording_view(request, recording_id, error="The title cannot be blank.")
+            if title is not None:
+                title = title.strip()
+                if not title:
+                    return recording_view(request, recording_id, error="The title cannot be blank.")
             if kind_id is not None and not recordings.kind_exists(conn, kind_id):
-                return recording_view(request, recording_id, error="Choose one of the listed Kinds.")
-            recordings.update_recording(
-                conn, recording_id, title=title.strip() if title is not None else None, kind_id=kind_id
-            )
+                return recording_view(request, recording_id, error=UNKNOWN_KIND_ERROR)
+            recordings.update_recording(conn, recording_id, title=title, kind_id=kind_id)
         return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
 
     def confirmation(request: Request, recording_id: int, action: str, question: str) -> HTMLResponse:
