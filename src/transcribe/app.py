@@ -58,6 +58,10 @@ JOB_STATUS_LABELS = {
 LIVE_STATUSES = ("queued", "transcribing")
 
 
+def is_live(status: str | None) -> bool:
+    return status in LIVE_STATUSES
+
+
 def format_duration(seconds: float | None) -> str:
     if seconds is None:
         return "—"
@@ -110,7 +114,7 @@ def create_app(
     templates.env.filters["timestamp"] = format_timestamp
     templates.env.filters["status"] = lambda status: JOB_STATUS_LABELS.get(status, "—")
     templates.env.filters["language"] = lambda code: LANGUAGES.get(code or AUTO_DETECT, code)
-    templates.env.tests["live"] = lambda status: status in LIVE_STATUSES
+    templates.env.tests["live"] = is_live
 
     @contextmanager
     def database() -> Iterator[sqlite3.Connection]:
@@ -225,7 +229,7 @@ def create_app(
         response = templates.TemplateResponse(
             request, "status.html", {"recording": recording, "reload": reload}
         )
-        if reload and recording["status"] not in LIVE_STATUSES:
+        if reload and not is_live(recording["status"]):
             response.headers["HX-Refresh"] = "true"
         return response
 

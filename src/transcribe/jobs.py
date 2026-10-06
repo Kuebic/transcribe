@@ -1,4 +1,4 @@
-"""Draining the Job queue: one plain function the worker loops over and tests call directly."""
+"""Draining the Job queue: plain functions the app and worker call and tests call directly."""
 
 from pathlib import Path
 

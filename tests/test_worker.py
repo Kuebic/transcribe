@@ -5,8 +5,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import FakeTranscriber
-from helpers import list_rows, recording_path, status_on_page, text_of, upload, wav_bytes
+from helpers import FakeTranscriber, list_rows, recording_path, status_on_page, text_of, upload, wav_bytes
 from transcribe.app import create_app
 from transcribe.jobs import process_next_job
 

@@ -14,7 +14,9 @@ IDLE_SECONDS = 5.0
 
 
 class Worker:
-    def __init__(self, data_dir: Path, transcriber: Transcriber, *, idle_seconds: float = IDLE_SECONDS):
+    def __init__(
+        self, data_dir: Path, transcriber: Transcriber, *, idle_seconds: float = IDLE_SECONDS
+    ) -> None:
         self.data_dir = data_dir
         self.transcriber = transcriber
         self.idle_seconds = idle_seconds
