@@ -1,0 +1,25 @@
+[project]
+name = "transcribe"
+version = "0.1.0"
+description = "LAN-only web app that turns audio Recordings into Transcripts with Whisper"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx2>=2.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[project.scripts]
+transcribe = "transcribe.main:serve"
