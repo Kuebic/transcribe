@@ -19,6 +19,7 @@ class Segment:
 class Transcription:
     segments: list[Segment]
     language: str | None
+    model: str
 
 
 @runtime_checkable

@@ -101,7 +101,8 @@ def create_recording(
 RECORDING_SELECT = """
 SELECT
     r.id, r.title, r.original_filename, r.duration_seconds, r.language_requested,
-    r.language_detected, r.model_name, r.created_at, k.name AS kind_name, j.status
+    r.language_detected, r.model_name, r.created_at, k.name AS kind_name,
+    j.status, j.started_at, j.finished_at
 FROM recordings r
 JOIN kinds k ON k.id = r.kind_id
 LEFT JOIN jobs j ON j.id = (SELECT MAX(id) FROM jobs WHERE recording_id = r.id)
@@ -117,3 +118,11 @@ def list_recordings(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 def get_recording(conn: sqlite3.Connection, recording_id: int) -> sqlite3.Row | None:
     return conn.execute(f"{RECORDING_SELECT} WHERE r.id = ?", (recording_id,)).fetchone()
+
+
+def list_segments(conn: sqlite3.Connection, recording_id: int) -> list[sqlite3.Row]:
+    """The Recording's Transcript in order; empty until its Job is Done."""
+    return conn.execute(
+        'SELECT start_seconds, end_seconds, text FROM segments WHERE recording_id = ? ORDER BY "index"',
+        (recording_id,),
+    ).fetchall()

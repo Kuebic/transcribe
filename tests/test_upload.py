@@ -1,53 +1,14 @@
 import hashlib
-import io
 import re
 import shutil
-import wave
 
 import pytest
 from fastapi.testclient import TestClient
 
+from helpers import kind_id, list_rows, recording_path, upload, wav_bytes
 from transcribe.app import create_app
 
 ACCEPTED_EXTENSIONS = ["m4a", "mp3", "ogg", "opus", "wav", "flac", "aac", "webm"]
-
-
-def wav_bytes(seconds: float, rate: int = 8000) -> bytes:
-    buffer = io.BytesIO()
-    with wave.open(buffer, "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(rate)
-        w.writeframes(b"\x00\x00" * int(seconds * rate))
-    return buffer.getvalue()
-
-
-def kind_id(client: TestClient, name: str) -> str:
-    page = client.get("/upload").text
-    match = re.search(rf'<option value="(\d+)"[^>]*>{name}</option>', page)
-    assert match, f"Kind {name!r} not offered on the upload page"
-    return match.group(1)
-
-
-def upload(client: TestClient, filename: str, content: bytes, kind: str = "lecture", **fields):
-    data = {"kind_id": kind_id(client, kind), **fields}
-    return client.post(
-        "/upload",
-        data=data,
-        files={"files": (filename, content, "application/octet-stream")},
-        follow_redirects=False,
-    )
-
-
-def recording_path(response) -> str:
-    assert response.status_code == 303, response.text
-    location = response.headers["location"]
-    assert re.fullmatch(r"/recordings/\d+", location)
-    return location
-
-
-def list_rows(client: TestClient) -> list[str]:
-    return re.findall(r"<tr class=\"recording\".*?</tr>", client.get("/").text, re.S)
 
 
 def test_upload_page_offers_seeded_kinds_title_and_language_defaulting_to_english(client):
@@ -82,6 +43,13 @@ def test_chosen_language_is_shown_on_the_recording_page(client):
     response = upload(client, "vortrag.mp3", wav_bytes(1), language="de")
 
     assert "de" in re.search(r"Language.*?</dd>", client.get(recording_path(response)).text, re.S).group(0)
+
+
+def test_automatic_language_detection_is_kept_rather_than_defaulting_to_english(client):
+    response = upload(client, "unknown.mp3", wav_bytes(1), language="auto")
+
+    language = re.search(r"Language</dt>\s*<dd>(.*?)</dd>", client.get(recording_path(response)).text).group(1)
+    assert language == "Detect automatically"
 
 
 @pytest.mark.parametrize("extension", ACCEPTED_EXTENSIONS + ["M4A"])

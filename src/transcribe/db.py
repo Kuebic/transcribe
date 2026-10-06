@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+DB_FILENAME = "transcribe.sqlite3"
+
 SCHEMA_VERSION = 1
 
 SEED_KINDS = ("call", "lecture", "talk", "note")

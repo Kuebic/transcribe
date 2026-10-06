@@ -9,20 +9,22 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from transcribe import recordings
-from transcribe.db import connect, init_db
+from transcribe.db import DB_FILENAME, connect, init_db
 from transcribe.limits import BodySizeLimit
 from transcribe.media import probe_duration
 from transcribe.transcriber import Transcriber
-
-DB_FILENAME = "transcribe.sqlite3"
 
 MAX_UPLOAD_BYTES = 2 * 1024**3
 
 DEFAULT_LANGUAGE = "en"
 
-# Whisper language codes offered at upload; the empty code asks Whisper to detect the language.
+# Not a Whisper code: asks Whisper to detect the language. Non-empty because an empty form
+# field counts as missing and would fall back to the default language.
+AUTO_DETECT = "auto"
+
+# Whisper language codes offered at upload.
 LANGUAGES = {
-    "": "Detect automatically",
+    AUTO_DETECT: "Detect automatically",
     "en": "English",
     "de": "German",
     "fr": "French",
@@ -58,6 +60,12 @@ def format_duration(seconds: float | None) -> str:
     return f"{hours}:{minutes:02}:{secs:02}" if hours else f"{minutes}:{secs:02}"
 
 
+def format_timestamp(seconds: float) -> str:
+    minutes, secs = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"[{hours:02}:{minutes:02}:{secs:02}]"
+
+
 def create_app(
     data_dir: Path,
     transcriber: Transcriber,
@@ -78,8 +86,9 @@ def create_app(
 
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
     templates.env.filters["duration"] = format_duration
+    templates.env.filters["timestamp"] = format_timestamp
     templates.env.filters["status"] = lambda status: JOB_STATUS_LABELS.get(status, "—")
-    templates.env.filters["language"] = lambda code: LANGUAGES.get(code or "", code)
+    templates.env.filters["language"] = lambda code: LANGUAGES.get(code or AUTO_DETECT, code)
 
     @contextmanager
     def database() -> Iterator[sqlite3.Connection]:
@@ -168,7 +177,7 @@ def create_app(
                 content_hash=staged.content_hash,
                 audio_path=audio_path,
                 duration_seconds=probe_duration(data_dir / audio_path),
-                language_requested=language or None,
+                language_requested=None if language == AUTO_DETECT else language,
             )
         return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
 
@@ -176,8 +185,11 @@ def create_app(
     def recording_page(request: Request, recording_id: int):
         with database() as conn:
             recording = recordings.get_recording(conn, recording_id)
+            segments = recordings.list_segments(conn, recording_id)
         if recording is None:
             raise HTTPException(status_code=404, detail="No such Recording")
-        return templates.TemplateResponse(request, "recording.html", {"recording": recording})
+        return templates.TemplateResponse(
+            request, "recording.html", {"recording": recording, "segments": segments}
+        )
 
     return app

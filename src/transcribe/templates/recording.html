@@ -7,7 +7,19 @@
   <dt>Status</dt><dd class="status">{{ recording.status | status }}</dd>
   <dt>Duration</dt><dd class="duration">{{ recording.duration_seconds | duration }}</dd>
   <dt>Uploaded</dt><dd>{{ recording.created_at }} UTC</dd>
+  {% if recording.started_at %}<dt>Started</dt><dd>{{ recording.started_at }} UTC</dd>{% endif %}
+  {% if recording.finished_at %}<dt>Finished</dt><dd>{{ recording.finished_at }} UTC</dd>{% endif %}
   <dt>Language</dt><dd>{{ recording.language_requested | language }}{% if recording.language_requested %} ({{ recording.language_requested }}){% endif %}</dd>
+  {% if recording.language_detected %}<dt>Detected language</dt><dd>{{ recording.language_detected | language }} ({{ recording.language_detected }})</dd>{% endif %}
+  {% if recording.model_name %}<dt>Model</dt><dd>{{ recording.model_name }}</dd>{% endif %}
   <dt>Original name</dt><dd>{{ recording.original_filename }}</dd>
 </dl>
+{% if segments %}
+<h2>Transcript</h2>
+<ol class="transcript">
+  {% for segment in segments %}
+  <li class="segment" data-start="{{ segment.start_seconds }}"><span class="timestamp">{{ segment.start_seconds | timestamp }}</span> {{ segment.text }}</li>
+  {% endfor %}
+</ol>
+{% endif %}
 {% endblock %}
