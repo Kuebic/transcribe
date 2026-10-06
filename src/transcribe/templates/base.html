@@ -31,11 +31,19 @@
     .copy.copy-failed { background: #fdd; border-color: #a00; }
     .edit { margin: 1rem 0; }
     .delete-links { display: flex; gap: 1rem; }
+    .kind-filter { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+    .kind-filter a { padding: .4rem .8rem; border: 1px solid #ccc; border-radius: 1rem; text-decoration: none; }
+    .kind-filter a[aria-current] { background: #333; color: #fff; border-color: #333; }
+    .kinds { list-style: none; padding: 0; }
+    .kind { padding: .5rem 0; border-bottom: 1px solid #eee; }
+    .kind p { margin: .25rem 0 0; }
+    form.inline { display: flex; gap: .5rem; align-items: center; }
+    form.inline button { margin-top: 0; }
     .danger { background: #a00; color: #fff; border-color: #a00; margin-right: 1rem; }
   </style>
 </head>
 <body>
-  <nav><a href="/">Recordings</a><a href="/upload">Upload</a></nav>
+  <nav><a href="/">Recordings</a><a href="/upload">Upload</a><a href="/kinds">Kinds</a></nav>
   {% block content %}{% endblock %}
 </body>
 </html>

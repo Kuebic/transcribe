@@ -163,11 +163,22 @@ def create_app(
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    def kind_or_404(conn: sqlite3.Connection, kind_id: int) -> sqlite3.Row:
+        kind = recordings.get_kind(conn, kind_id)
+        if kind is None:
+            raise HTTPException(status_code=404, detail="No such Kind")
+        return kind
+
     @app.get("/", response_class=HTMLResponse)
-    def recording_list(request: Request):
+    def recording_list(request: Request, kind: int | None = None):
+        """All Recordings, or with ?kind=<id> only those of that Kind."""
         with database() as conn:
-            rows = recordings.list_recordings(conn)
-        return templates.TemplateResponse(request, "index.html", {"recordings": rows})
+            selected_kind = None if kind is None else kind_or_404(conn, kind)
+            rows = recordings.list_recordings(conn, kind_id=kind)
+            kinds = recordings.list_kinds(conn)
+        return templates.TemplateResponse(
+            request, "index.html", {"recordings": rows, "kinds": kinds, "selected_kind": selected_kind}
+        )
 
     @app.get("/upload", response_class=HTMLResponse)
     def upload_page(request: Request):
@@ -291,17 +302,25 @@ def create_app(
             recordings.update_recording(conn, recording_id, title=title, kind_id=kind_id)
         return RedirectResponse(f"/recordings/{recording_id}", status_code=303)
 
-    def confirmation(request: Request, recording_id: int, action: str, question: str) -> HTMLResponse:
-        """The page a delete link leads to; only its form's POST deletes anything."""
+    def confirmation(request: Request, *, heading: str, question: str, action: str, cancel: str) -> HTMLResponse:
+        """The page a delete link leads to; only its form's POST to the action deletes anything."""
+        return templates.TemplateResponse(
+            request,
+            "confirm.html",
+            {"heading": heading, "question": question, "action": action, "cancel": cancel},
+        )
+
+    def recording_confirmation(request: Request, recording_id: int, action: str, question: str) -> HTMLResponse:
         with database() as conn:
             recording = recording_or_404(conn, recording_id)
-        return templates.TemplateResponse(
-            request, "confirm.html", {"recording": recording, "action": action, "question": question}
+        path = f"/recordings/{recording_id}"
+        return confirmation(
+            request, heading=recording["title"], question=question, action=f"{path}/{action}", cancel=path
         )
 
     @app.get("/recordings/{recording_id}/delete-audio", response_class=HTMLResponse)
     def confirm_delete_audio(request: Request, recording_id: int):
-        return confirmation(
+        return recording_confirmation(
             request,
             recording_id,
             "delete-audio",
@@ -317,7 +336,7 @@ def create_app(
 
     @app.get("/recordings/{recording_id}/delete", response_class=HTMLResponse)
     def confirm_delete_recording(request: Request, recording_id: int):
-        return confirmation(
+        return recording_confirmation(
             request,
             recording_id,
             "delete",
@@ -330,6 +349,76 @@ def create_app(
             recording_or_404(conn, recording_id)
             recordings.delete_recording(conn, data_dir, recording_id)
         return RedirectResponse("/", status_code=303)
+
+    def kinds_view(request: Request, *, error: str | None = None, new_name: str = "") -> HTMLResponse:
+        with database() as conn:
+            kinds = recordings.list_kinds_with_counts(conn)
+        return templates.TemplateResponse(
+            request,
+            "kinds.html",
+            {"kinds": kinds, "error": error, "new_name": new_name},
+            status_code=400 if error else 200,
+        )
+
+    def kind_name_error(conn: sqlite3.Connection, name: str, *, other_than: int | None = None) -> str | None:
+        if not name:
+            return "A Kind needs a name."
+        if recordings.kind_name_taken(conn, name, other_than=other_than):
+            return f"A Kind named “{name}” already exists."
+        return None
+
+    @app.get("/kinds", response_class=HTMLResponse)
+    def kinds_page(request: Request):
+        return kinds_view(request)
+
+    @app.post("/kinds")
+    def add_kind(request: Request, name: Annotated[str, Form()] = ""):
+        name = name.strip()
+        with database() as conn:
+            error = kind_name_error(conn, name)
+            if error:
+                return kinds_view(request, error=error, new_name=name)
+            recordings.add_kind(conn, name)
+        return RedirectResponse("/kinds", status_code=303)
+
+    @app.post("/kinds/{kind_id}")
+    def rename_kind(request: Request, kind_id: int, name: Annotated[str, Form()] = ""):
+        """The new name shows on every Recording with this Kind."""
+        name = name.strip()
+        with database() as conn:
+            kind_or_404(conn, kind_id)
+            error = kind_name_error(conn, name, other_than=kind_id)
+            if error:
+                return kinds_view(request, error=error)
+            recordings.rename_kind(conn, kind_id, name)
+        return RedirectResponse("/kinds", status_code=303)
+
+    @app.get("/kinds/{kind_id}/delete", response_class=HTMLResponse)
+    def confirm_delete_kind(request: Request, kind_id: int):
+        with database() as conn:
+            kind = kind_or_404(conn, kind_id)
+        return confirmation(
+            request,
+            heading=kind["name"],
+            question=f"Delete the Kind “{kind['name']}”? New Recordings can no longer be given it.",
+            action=f"/kinds/{kind_id}/delete",
+            cancel="/kinds",
+        )
+
+    @app.post("/kinds/{kind_id}/delete")
+    def delete_kind(request: Request, kind_id: int):
+        """Refused while any Recording has the Kind, so no Recording is ever left without one."""
+        with database() as conn:
+            kind = kind_or_404(conn, kind_id)
+            if not recordings.delete_kind(conn, kind_id):
+                count = recordings.count_recordings_of_kind(conn, kind_id)
+                holders = "1 Recording has" if count == 1 else f"{count} Recordings have"
+                return kinds_view(
+                    request,
+                    error=f"“{kind['name']}” cannot be deleted: {holders} this Kind. "
+                    "Give them another Kind first.",
+                )
+        return RedirectResponse("/kinds", status_code=303)
 
     @app.get("/recordings/{recording_id}/audio", response_class=FileResponse)
     def audio(recording_id: int):

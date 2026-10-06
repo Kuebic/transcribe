@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Recordings</h1>
+<nav class="kind-filter" aria-label="Show one Kind">
+  <a href="/"{% if not selected_kind %} aria-current="page"{% endif %}>All</a>
+  {%- for kind in kinds %}
+  <a href="/?kind={{ kind.id }}"{% if selected_kind and kind.id == selected_kind.id %} aria-current="page"{% endif %}>{{ kind.name }}</a>
+  {%- endfor %}
+</nav>
 {% if recordings %}
 <table>
   <thead>
@@ -19,6 +25,6 @@
   </tbody>
 </table>
 {% else %}
-<p>No Recordings yet. <a href="/upload">Upload one</a>.</p>
+<p>No {% if selected_kind %}{{ selected_kind.name }} {% endif %}Recordings yet. <a href="/upload">Upload one</a>.</p>
 {% endif %}
 {% endblock %}

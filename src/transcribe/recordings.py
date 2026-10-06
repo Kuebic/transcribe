@@ -80,8 +80,55 @@ def list_kinds(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("SELECT id, name FROM kinds ORDER BY id").fetchall()
 
 
+def list_kinds_with_counts(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Every Kind with how many Recordings have it."""
+    return conn.execute(
+        """
+        SELECT k.id, k.name, COUNT(r.id) AS recording_count
+        FROM kinds k LEFT JOIN recordings r ON r.kind_id = k.id
+        GROUP BY k.id ORDER BY k.id
+        """
+    ).fetchall()
+
+
+def get_kind(conn: sqlite3.Connection, kind_id: int) -> sqlite3.Row | None:
+    return conn.execute("SELECT id, name FROM kinds WHERE id = ?", (kind_id,)).fetchone()
+
+
 def kind_exists(conn: sqlite3.Connection, kind_id: int) -> bool:
-    return conn.execute("SELECT 1 FROM kinds WHERE id = ?", (kind_id,)).fetchone() is not None
+    return get_kind(conn, kind_id) is not None
+
+
+def kind_name_taken(conn: sqlite3.Connection, name: str, *, other_than: int | None = None) -> bool:
+    """Whether another Kind already has this name, ignoring case."""
+    row = conn.execute(
+        "SELECT 1 FROM kinds WHERE name = ? COLLATE NOCASE AND id IS NOT ?", (name, other_than)
+    ).fetchone()
+    return row is not None
+
+
+def add_kind(conn: sqlite3.Connection, name: str) -> int:
+    with conn:
+        return conn.execute("INSERT INTO kinds (name) VALUES (?)", (name,)).lastrowid
+
+
+def rename_kind(conn: sqlite3.Connection, kind_id: int, name: str) -> None:
+    with conn:
+        conn.execute("UPDATE kinds SET name = ? WHERE id = ?", (name, kind_id))
+
+
+def delete_kind(conn: sqlite3.Connection, kind_id: int) -> bool:
+    """Remove the Kind unless a Recording has it; returns whether it was removed."""
+    with conn:
+        cursor = conn.execute(
+            "DELETE FROM kinds WHERE id = ? AND NOT EXISTS (SELECT 1 FROM recordings WHERE kind_id = ?)",
+            (kind_id, kind_id),
+        )
+    return cursor.rowcount == 1
+
+
+def count_recordings_of_kind(conn: sqlite3.Connection, kind_id: int) -> int:
+    return conn.execute("SELECT COUNT(*) FROM recordings WHERE kind_id = ?", (kind_id,)).fetchone()[0]
 
 
 def find_recording_by_hash(conn: sqlite3.Connection, content_hash: str) -> int | None:
@@ -130,10 +177,11 @@ LEFT JOIN jobs j ON j.id = (SELECT MAX(id) FROM jobs WHERE recording_id = r.id)
 """
 
 
-def list_recordings(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """All Recordings newest first, each with its Kind name and latest Job status."""
+def list_recordings(conn: sqlite3.Connection, *, kind_id: int | None = None) -> list[sqlite3.Row]:
+    """Recordings newest first, each with its Kind name and latest Job status; all Kinds unless one is given."""
     return conn.execute(
-        f"{RECORDING_SELECT} ORDER BY r.created_at DESC, r.id DESC"
+        f"{RECORDING_SELECT} WHERE ? IS NULL OR r.kind_id = ? ORDER BY r.created_at DESC, r.id DESC",
+        (kind_id, kind_id),
     ).fetchall()
 
 

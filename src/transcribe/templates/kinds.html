@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Kinds · Transcribe{% endblock %}
+{% block content %}
+<h1>Kinds</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<ul class="kinds">
+  {% for kind in kinds %}
+  <li class="kind">
+    <form class="inline" method="post" action="/kinds/{{ kind.id }}">
+      <input type="text" name="name" value="{{ kind.name }}" required aria-label="Name of this Kind">
+      <button type="submit">Rename</button>
+    </form>
+    <p>
+      {% if kind.recording_count == 0 %}No Recordings · <a href="/kinds/{{ kind.id }}/delete">Delete…</a>
+      {%- else %}<a href="/?kind={{ kind.id }}">{{ kind.recording_count }} Recording{% if kind.recording_count != 1 %}s{% endif %}</a>
+      {%- endif %}
+    </p>
+  </li>
+  {% endfor %}
+</ul>
+<h2>Add a Kind</h2>
+<form class="inline" method="post" action="/kinds">
+  <input type="text" name="name" value="{{ new_name }}" required aria-label="Name of the new Kind" placeholder="e.g. sermon">
+  <button type="submit">Add</button>
+</form>
+{% endblock %}
