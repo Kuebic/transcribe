@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ recording.title }} · Transcribe{% endblock %}
+{% block scripts %}{% if recording.status == "done" %}<script src="/static/copy.js" defer></script>{% endif %}{% endblock %}
 {% block content %}
 <h1>{{ recording.title }}</h1>
 <dl>
@@ -19,6 +20,12 @@
 {% endif %}
 {% if segments %}
 <h2>Transcript</h2>
+{% if recording.status == "done" %}
+<div class="copy-buttons" aria-live="polite">
+  <button type="button" class="copy" data-src="/recordings/{{ recording.id }}/transcript.txt">Copy</button>
+  <button type="button" class="copy" data-src="/recordings/{{ recording.id }}/transcript.timestamped.txt">Copy with timestamps</button>
+</div>
+{% endif %}
 <ol class="transcript">
   {% for segment in segments %}
   <li class="segment" data-start="{{ segment.start_seconds }}"><span class="timestamp">{{ segment.start_seconds | timestamp }}</span> {{ segment.text }}</li>

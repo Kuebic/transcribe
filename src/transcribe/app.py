@@ -1,20 +1,20 @@
 import sqlite3
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from transcribe import recordings
+from transcribe import copy_format, recordings
 from transcribe.db import DB_FILENAME, connect, init_db
 from transcribe.jobs import requeue_interrupted_jobs
 from transcribe.limits import BodySizeLimit
 from transcribe.media import probe_duration
-from transcribe.transcriber import Transcriber
+from transcribe.transcriber import Segment, Transcriber
 from transcribe.worker import Worker
 
 MAX_UPLOAD_BYTES = 2 * 1024**3
@@ -218,6 +218,25 @@ def create_app(
         return templates.TemplateResponse(
             request, "recording.html", {"recording": recording, "segments": segments}
         )
+
+    def transcript_text(recording_id: int, render: Callable[[list[Segment]], str]) -> PlainTextResponse:
+        with database() as conn:
+            recording = recordings.get_recording(conn, recording_id)
+            rows = recordings.list_segments(conn, recording_id)
+        if recording is None:
+            raise HTTPException(status_code=404, detail="No such Recording")
+        if recording["status"] != "done":
+            raise HTTPException(status_code=404, detail="No Transcript until the Job is Done")
+        segments = [Segment(row["start_seconds"], row["end_seconds"], row["text"]) for row in rows]
+        return PlainTextResponse(render(segments))
+
+    @app.get("/recordings/{recording_id}/transcript.txt", response_class=PlainTextResponse)
+    def plain_transcript(recording_id: int):
+        return transcript_text(recording_id, copy_format.plain)
+
+    @app.get("/recordings/{recording_id}/transcript.timestamped.txt", response_class=PlainTextResponse)
+    def timestamped_transcript(recording_id: int):
+        return transcript_text(recording_id, copy_format.timestamped)
 
     @app.post("/recordings/{recording_id}/retry")
     def retry(recording_id: int):

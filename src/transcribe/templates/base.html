@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Transcribe{% endblock %}</title>
   <script src="/static/htmx-2.0.4.min.js" defer></script>
+  {% block scripts %}{% endblock %}
   <style>
     body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 52rem; padding: 0 1rem 2rem; line-height: 1.5; }
     nav { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
@@ -21,6 +22,9 @@
     .transcript { list-style: none; padding: 0; }
     .segment { margin: .4rem 0; }
     .timestamp { color: #666; font-variant-numeric: tabular-nums; margin-right: .4rem; }
+    .copy-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .copy.copied { background: #dfd; border-color: #080; }
+    .copy.copy-failed { background: #fdd; border-color: #a00; }
   </style>
 </head>
 <body>
