@@ -213,7 +213,8 @@ def create_app(
     ):
         """One Recording per file; a file whose content is already stored opens the existing one."""
         retry = {"kind_id": kind_id, "title": title, "language": language}
-        unsupported = [f.filename or "" for f in files if recordings.audio_extension(f.filename or "") is None]
+        filenames = [f.filename or "" for f in files]
+        unsupported = [name for name in filenames if recordings.audio_extension(name) is None]
         if unsupported:
             names = ", ".join(f"“{name}”" for name in unsupported)
             accepted = ", ".join(recordings.ACCEPTED_EXTENSIONS)
@@ -229,18 +230,19 @@ def create_app(
             if not recordings.kind_exists(conn, kind_id):
                 return upload_form(request, error="Choose one of the listed Kinds.", **retry)
 
-        recording = {
+        shared_fields = {
             # A typed title only fits a single file; several files are each named after their file.
             "title": title.strip() if len(files) == 1 else None,
             "kind_id": kind_id,
             "language_requested": None if language == AUTO_DETECT else language,
         }
+        results = []
         with database() as conn:
-            stored = [(f.filename, *store_upload(conn, f, **recording)) for f in files]
-            results = [
-                {"filename": filename, "new": new, "recording": recordings.get_recording(conn, recording_id)}
-                for filename, recording_id, new in stored
-            ]
+            for f in files:
+                recording_id, new = store_upload(conn, f, **shared_fields)
+                results.append(
+                    {"filename": f.filename, "new": new, "recording": recordings.get_recording(conn, recording_id)}
+                )
         worker.wake()
 
         if len(results) == 1:

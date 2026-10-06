@@ -54,13 +54,7 @@ def kind_id(client: TestClient, name: str) -> str:
 
 
 def upload(client: TestClient, filename: str, content: bytes, kind: str = "lecture", **fields):
-    data = {"kind_id": kind_id(client, kind), **fields}
-    return client.post(
-        "/upload",
-        data=data,
-        files={"files": (filename, content, "application/octet-stream")},
-        follow_redirects=False,
-    )
+    return upload_many(client, {filename: content}, kind, **fields)
 
 
 def upload_many(client: TestClient, files: dict[str, bytes], kind: str = "lecture", **fields):
