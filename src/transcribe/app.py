@@ -71,9 +71,7 @@ def format_duration(seconds: float | None) -> str:
 
 
 def format_timestamp(seconds: float) -> str:
-    minutes, secs = divmod(int(seconds), 60)
-    hours, minutes = divmod(minutes, 60)
-    return f"[{hours:02}:{minutes:02}:{secs:02}]"
+    return f"[{copy_format.clock(seconds, with_hours=True)}]"
 
 
 def create_app(

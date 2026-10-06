@@ -39,13 +39,14 @@ def timestamped(segments: Sequence[Segment]) -> str:
     """One `[MM:SS] text` line per Segment; every line shows hours once any Segment starts past an hour."""
     with_hours = any(segment.start >= ONE_HOUR for segment in segments)
     return "".join(
-        f"[{_clock(segment.start, with_hours)}] {segment.text.strip()}\n"
+        f"[{clock(segment.start, with_hours)}] {segment.text.strip()}\n"
         for segment in segments
         if segment.text.strip()
     )
 
 
-def _clock(seconds: float, with_hours: bool) -> str:
+def clock(seconds: float, with_hours: bool) -> str:
+    """Whole seconds as MM:SS, or HH:MM:SS with hours."""
     minutes, secs = divmod(int(seconds), 60)
     if not with_hours:
         return f"{minutes:02}:{secs:02}"
