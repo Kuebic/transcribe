@@ -74,8 +74,8 @@ def recording_path(response) -> str:
     return location
 
 
-def list_rows(client: TestClient) -> list[str]:
-    return re.findall(r"<tr class=\"recording\".*?</tr>", client.get("/").text, re.S)
+def list_rows(client: TestClient, path: str = "/") -> list[str]:
+    return re.findall(r"<tr class=\"recording\".*?</tr>", client.get(path).text, re.S)
 
 
 def text_of(html: str) -> str:

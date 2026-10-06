@@ -134,6 +134,12 @@ def create_app(
             raise HTTPException(status_code=404, detail="No such Recording")
         return recording
 
+    def kind_or_404(conn: sqlite3.Connection, kind_id: int) -> sqlite3.Row:
+        kind = recordings.get_kind(conn, kind_id)
+        if kind is None:
+            raise HTTPException(status_code=404, detail="No such Kind")
+        return kind
+
     def upload_form(
         request: Request,
         *,
@@ -162,12 +168,6 @@ def create_app(
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
-
-    def kind_or_404(conn: sqlite3.Connection, kind_id: int) -> sqlite3.Row:
-        kind = recordings.get_kind(conn, kind_id)
-        if kind is None:
-            raise HTTPException(status_code=404, detail="No such Kind")
-        return kind
 
     @app.get("/", response_class=HTMLResponse)
     def recording_list(request: Request, kind: int | None = None):

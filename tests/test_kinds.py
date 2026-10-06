@@ -163,12 +163,10 @@ def test_list_can_be_filtered_to_one_kind(client):
     call_path = recording_path(upload(client, "a.m4a", wav_bytes(1), kind="call"))
     lecture_path = recording_path(upload(client, "b.m4a", wav_bytes(2), kind="lecture"))
 
-    page = client.get(f"/?kind={kind_id(client, 'call')}").text
-    rows = re.findall(r"<tr class=\"recording\".*?</tr>", page, re.S)
+    [row] = list_rows(client, f"/?kind={kind_id(client, 'call')}")
 
-    assert len(rows) == 1
-    assert call_path in rows[0]
-    assert lecture_path not in page
+    assert call_path in row
+    assert lecture_path not in row
     assert len(list_rows(client)) == 2
 
 
