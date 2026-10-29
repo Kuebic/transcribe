@@ -66,6 +66,9 @@ def test_upload_form_accepts_several_files_and_shows_progress(client):
     page = client.get("/upload").text
 
     assert re.search(r'<input type="file" name="files" multiple', page)
+    # audio/* first: Android's picker matches the MIME an app indexed a file with, not its
+    # extension, so an extension-only list greys out recordings saved to Downloads.
+    assert 'accept="audio/*,.m4a,' in page
     assert '<script src="/static/upload.js" defer></script>' in page
     assert "<progress" in page
     assert client.get("/static/upload.js").status_code == 200

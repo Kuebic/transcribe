@@ -7,7 +7,7 @@
 <form class="upload" method="post" action="/upload" enctype="multipart/form-data">
   <label>Audio
     <input type="file" name="files" multiple required
-           accept="{% for ext in accepted_extensions %}.{{ ext }}{% if not loop.last %},{% endif %}{% endfor %}">
+           accept="audio/*,{% for ext in accepted_extensions %}.{{ ext }}{% if not loop.last %},{% endif %}{% endfor %}">
   </label>
   <label>Kind
     <select name="kind_id" required>
