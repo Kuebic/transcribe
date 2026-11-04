@@ -65,3 +65,11 @@ def test_server_entrypoint_builds_app_from_data_dir_env(tmp_path, monkeypatch):
     with TestClient(build_app()) as c:
         assert c.get("/healthz").json() == {"status": "ok"}
     assert (tmp_path / "served" / DB_FILENAME).is_file()
+
+
+def test_pages_offer_a_theme_toggle_that_follows_the_system_by_default(client):
+    page = client.get("/").text
+
+    assert "color-scheme: light dark" in page
+    assert 'class="theme-toggle"' in page
+    assert client.get("/static/theme.js").status_code == 200

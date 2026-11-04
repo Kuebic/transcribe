@@ -5,37 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Transcribe{% endblock %}</title>
   <script src="/static/htmx-2.0.4.min.js" defer></script>
+  <script src="/static/theme.js" defer></script>
   {% block scripts %}{% endblock %}
   <style>
+    :root { color-scheme: light dark; }
     body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 52rem; padding: 0 1rem 2rem; line-height: 1.5; }
-    nav { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
+    nav { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid light-dark(#ddd, #444); margin-bottom: 1rem; }
+    nav .theme-toggle { margin: 0 0 0 auto; padding: .2rem .6rem; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #eee; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid light-dark(#eee, #333); }
     .duration { font-variant-numeric: tabular-nums; }
     form label { display: block; margin-top: 1rem; }
     input, select, button { font: inherit; padding: .4rem; max-width: 100%; }
     button { margin-top: 1rem; }
     .upload-progress progress { width: 100%; }
-    .error { color: #a00; border: 1px solid #a00; padding: .5rem; }
-    .job-error { color: #a00; overflow-wrap: anywhere; }
+    .error { color: light-dark(#a00, #f77); border: 1px solid light-dark(#a00, #f77); padding: .5rem; }
+    .job-error { color: light-dark(#a00, #f77); overflow-wrap: anywhere; }
     dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
     dt { font-weight: bold; }
     .transcript { list-style: none; padding: 0; }
     .segment { margin: .4rem 0; }
     .player { display: block; width: 100%; position: sticky; top: 0; margin: 1rem 0; z-index: 1; }
     .seekable .segment { cursor: pointer; }
-    .segment.current { background: #fff3c4; }
-    .timestamp { color: #666; font-variant-numeric: tabular-nums; margin-right: .4rem; }
+    .segment.current { background: light-dark(#fff3c4, #4a3f12); }
+    .timestamp { color: light-dark(#666, #999); font-variant-numeric: tabular-nums; margin-right: .4rem; }
     .copy-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
-    .copy.copied { background: #dfd; border-color: #080; }
-    .copy.copy-failed { background: #fdd; border-color: #a00; }
+    .copy.copied { background: light-dark(#dfd, #1d3d1d); border-color: light-dark(#080, #5c5); }
+    .copy.copy-failed { background: light-dark(#fdd, #4a1d1d); border-color: light-dark(#a00, #f77); }
     .edit { margin: 1rem 0; }
     .delete-links { display: flex; gap: 1rem; }
     .kind-filter { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
-    .kind-filter a { padding: .4rem .8rem; border: 1px solid #ccc; border-radius: 1rem; text-decoration: none; }
-    .kind-filter a[aria-current] { background: #333; color: #fff; border-color: #333; }
+    .kind-filter a { padding: .4rem .8rem; border: 1px solid light-dark(#ccc, #555); border-radius: 1rem; text-decoration: none; }
+    .kind-filter a[aria-current] { background: light-dark(#333, #ddd); color: light-dark(#fff, #111); border-color: light-dark(#333, #ddd); }
     .kinds { list-style: none; padding: 0; }
-    .kind { padding: .5rem 0; border-bottom: 1px solid #eee; }
+    .kind { padding: .5rem 0; border-bottom: 1px solid light-dark(#eee, #333); }
     .kind p { margin: .25rem 0 0; }
     form.inline { display: flex; gap: .5rem; align-items: center; }
     form.inline button { margin-top: 0; }
@@ -43,7 +46,7 @@
   </style>
 </head>
 <body>
-  <nav><a href="/">Recordings</a><a href="/upload">Upload</a><a href="/kinds">Kinds</a></nav>
+  <nav><a href="/">Recordings</a><a href="/upload">Upload</a><a href="/kinds">Kinds</a><button type="button" class="theme-toggle" hidden></button></nav>
   {% block content %}{% endblock %}
 </body>
 </html>

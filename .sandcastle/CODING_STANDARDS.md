@@ -11,7 +11,7 @@ The reviewer loads this file on every review cycle. Keep it short; every line he
 ## Shape
 
 - One FastAPI process, SQLite only, Job queue is a table, one worker thread. No Redis, Postgres, Celery, or separate containers.
-- Server-rendered Jinja pages; HTMX for partial refresh; hand-written JavaScript only for the player/Segment sync, upload progress, and clipboard. No bundler, no npm, no build step.
+- Server-rendered Jinja pages; HTMX for partial refresh; hand-written JavaScript only for the player/Segment sync, upload progress, clipboard, and the light/dark toggle. No bundler, no npm, no build step.
 - The `Transcriber` protocol and the copy-format functions are framework-free modules. Nothing in them imports FastAPI, SQLite, or the filesystem layout.
 - App is built by one factory taking the data directory and the Transcriber. No module-level singletons for DB, config, or worker.
 
