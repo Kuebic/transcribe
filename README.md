@@ -4,6 +4,21 @@ A single-user web app at `http://transcribe.lan` that turns Recordings (phone ca
 
 The terms used here and in the code (Recording, Kind, Transcript, Segment, Job) are defined in [`GLOSSARY.md`](GLOSSARY.md).
 
+## Design in brief
+
+- **GPU in Compose.** One container built from `nvidia/cuda:13.0.2-runtime`, GPU reserved
+  through the NVIDIA Container Toolkit, Python dependencies pinned with `uv` and a lockfile.
+  The image builds on the box; there is no registry.
+- **One state directory.** SQLite, audio named by content hash, and the model cache all
+  live under `data/`, so backup is one path and a rebuild is `git pull` plus `compose up`.
+- **Restart-safe jobs.** Transcription runs in a worker off the request path; a Job cut off
+  by a restart returns to Queued and runs again.
+- **Tests without a GPU.** The suite substitutes a fake Transcriber; a single opt-in smoke
+  test runs real Whisper on the box.
+- **Threat model written down.** The app holds phone-call audio, so exposure was the first
+  decision: [ADR 0001](docs/adr/0001-lan-only-no-auth.md) chooses LAN-only over public
+  HTTPS with a login or a VPN, and says what would have to change to revisit it.
+
 ## LAN-only, no login
 
 The app has no authentication, no sessions and no public hostname. It is reached only over plain HTTP from the home network, through the home Caddy proxy. The home network is the trust boundary, so uploading from the phone only works on home Wi-Fi. Do not publish it to the internet; see [ADR 0001](docs/adr/0001-lan-only-no-auth.md) for why, and how to get HTTPS later without exposing it.
